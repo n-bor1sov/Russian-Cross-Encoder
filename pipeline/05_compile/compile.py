@@ -1,7 +1,9 @@
+import argparse
 import os
 import gc
 import json
 import os
+import tomllib
 from collections import defaultdict
 from collections.abc import Iterable
 from pathlib import Path
@@ -464,54 +466,103 @@ def build_dataset(hf_dataset, mined_hard_negatives, output_path, config=CONFIG, 
 # ---------------------------
 # Usage: Process one-by-one (including loading), then save (no final shuffle)
 # ---------------------------
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description="Compile final reranking dataset from filtered shards + mined hard negatives.",
+    )
+    parser.add_argument(
+        "--negatives-per-query",
+        dest="negatives_per_query",
+        type=int,
+        default=None,
+        help="Number of hard negatives per query (max_hard_negatives).",
+    )
+    parser.add_argument(
+        "--cross-lingual-augment",
+        dest="cross_lingual_augment",
+        action=argparse.BooleanOptionalAction,
+        default=None,
+        help="Whether to enable cross-lingual query/passage permutations.",
+    )
+    parser.add_argument(
+        "--config",
+        type=Path,
+        default=None,
+        help="TOML config file (configs/thesis/05_compile.toml). CLI flags override TOML values.",
+    )
+    args = parser.parse_args()
 
-for split_name, split_cfg in  SPLIT_CONFIGS.items():
-    print("\n" + "=" * 70)
-    print(f"Processing split: {split_name}")
-    print("=" * 70)
+    if args.config is not None:
+        _cfg = tomllib.loads(args.config.read_text())
+        for _k, _v in _cfg.items():
+            if getattr(args, _k, "_missing_sentinel") is None:
+                setattr(args, _k, _v)
 
-    filtering_name = split_cfg["filtering_name"]
-    temp_dir = OUTPUT_PARTS_ROOT / filtering_name / split_name
-    hard_negatives_input_folder = split_cfg["hard_negatives_input_folder"]
-    datasets_paths = split_cfg["datasets_paths"]
+    if args.negatives_per_query is None:
+        args.negatives_per_query = 8
+    if args.cross_lingual_augment is None:
+        args.cross_lingual_augment = True
 
-    # FIXME:
-    # if temp_dir.exists():
-    #     shutil.rmtree(temp_dir)
-    temp_dir.mkdir(exist_ok=True, parents=True)
+    return args
 
-    parquet_paths = []
-    split_stats = defaultdict(dict)
 
-    for dataset_entry in datasets_paths:
-        dataset_name, dataset_path = dataset_entry[0], dataset_entry[1]
-        hn_name = dataset_entry[2] if len(dataset_entry) > 2 else dataset_name
-        print(f"\nProcessing dataset: {dataset_name}")
+def main() -> None:
+    args = parse_args()
+    runtime_config = dict(CONFIG)
+    runtime_config["max_hard_negatives"] = args.negatives_per_query
+    runtime_config["permutation_mode"] = "all" if args.cross_lingual_augment else "same_only"
 
-        mined = load_hard_negatives_for_dataset(hn_name, hard_negatives_input_folder)
-        if not mined:
-            print(f"  Warning: No hard negatives found for {dataset_name}, skipping...")
-            continue
+    for split_name, split_cfg in SPLIT_CONFIGS.items():
+        print("\n" + "=" * 70)
+        print(f"Processing split: {split_name}")
+        print("=" * 70)
 
-        # Load each dataset inside the loop to keep memory low
-        dataset = _load_dataset("parquet", data_files=dataset_path, split="train")
+        filtering_name = split_cfg["filtering_name"]
+        temp_dir = OUTPUT_PARTS_ROOT / filtering_name / split_name
+        hard_negatives_input_folder = split_cfg["hard_negatives_input_folder"]
+        datasets_paths = split_cfg["datasets_paths"]
 
-        out_path = temp_dir / f"{dataset_name}.parquet"
-        dataset_stats = build_dataset(dataset, mined, out_path, CONFIG, dataset_name=dataset_name)
-        split_stats[split_name][dataset_name] = dataset_stats
-        parquet_paths.append(str(out_path))
+        # FIXME:
+        # if temp_dir.exists():
+        #     shutil.rmtree(temp_dir)
+        temp_dir.mkdir(exist_ok=True, parents=True)
 
-        del dataset, mined
-        gc.collect()
+        parquet_paths = []
+        split_stats = defaultdict(dict)
 
-    print("\n" + "-" * 70)
-    print(f"Drop stats for split: {split_name}")
-    for dataset_name, dataset_stats in split_stats[split_name].items():
-        print(
-            f"  {dataset_name}: "
-            f"dropped_insufficient_hn={dataset_stats['dropped_insufficient_hn']}, "
-            f"dropped_after_lang_policy={dataset_stats['dropped_incomplete_after_policy']}, "
-            f"written_queries={dataset_stats['written_queries']}"
-        )
+        for dataset_entry in datasets_paths:
+            dataset_name, dataset_path = dataset_entry[0], dataset_entry[1]
+            hn_name = dataset_entry[2] if len(dataset_entry) > 2 else dataset_name
+            print(f"\nProcessing dataset: {dataset_name}")
+
+            mined = load_hard_negatives_for_dataset(hn_name, hard_negatives_input_folder)
+            if not mined:
+                print(f"  Warning: No hard negatives found for {dataset_name}, skipping...")
+                continue
+
+            # Load each dataset inside the loop to keep memory low
+            dataset = _load_dataset("parquet", data_files=dataset_path, split="train")
+
+            out_path = temp_dir / f"{dataset_name}.parquet"
+            dataset_stats = build_dataset(dataset, mined, out_path, runtime_config, dataset_name=dataset_name)
+            split_stats[split_name][dataset_name] = dataset_stats
+            parquet_paths.append(str(out_path))
+
+            del dataset, mined
+            gc.collect()
+
+        print("\n" + "-" * 70)
+        print(f"Drop stats for split: {split_name}")
+        for dataset_name, dataset_stats in split_stats[split_name].items():
+            print(
+                f"  {dataset_name}: "
+                f"dropped_insufficient_hn={dataset_stats['dropped_insufficient_hn']}, "
+                f"dropped_after_lang_policy={dataset_stats['dropped_incomplete_after_policy']}, "
+                f"written_queries={dataset_stats['written_queries']}"
+            )
+
+
+if __name__ == "__main__":
+    main()
 
 # ex: nohup python3 compile.py > compile.log 2>&1 &

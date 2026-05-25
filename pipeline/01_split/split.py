@@ -3,7 +3,9 @@ from __future__ import annotations
 import os
 import argparse
 import glob
+import tomllib
 from collections import defaultdict
+from pathlib import Path
 
 import networkx as nx
 import numpy as np
@@ -191,8 +193,15 @@ def parse_args():
         default="../nik_datasets/parquets/cleaned_datasets/splits/",
         help="Куда писать train/validation/",
     )
-    p.add_argument("--val-size", type=float, default=0.04, help="Доля пар на validation")
-    p.add_argument("--seed", type=int, default=42)
+    p.add_argument(
+        "--val-fraction",
+        "--val-size",
+        dest="val_fraction",
+        type=float,
+        default=None,
+        help="Доля пар на validation",
+    )
+    p.add_argument("--seed", type=int, default=None)
     p.add_argument(
         "--extra-single-lang-source",
         default="ru_sci_bench_merged.parquet",
@@ -203,7 +212,26 @@ def parse_args():
         default="ru_sci_bench_ru.parquet",
         help="Имя выходного parquet для одноязычного сплита",
     )
-    return p.parse_args()
+    p.add_argument(
+        "--config",
+        type=Path,
+        default=None,
+        help="TOML config file (configs/thesis/01_split.toml). CLI flags override TOML values.",
+    )
+    args = p.parse_args()
+
+    if args.config is not None:
+        _cfg = tomllib.loads(args.config.read_text())
+        for _k, _v in _cfg.items():
+            if getattr(args, _k, "_missing_sentinel") is None:
+                setattr(args, _k, _v)
+
+    if args.val_fraction is None:
+        args.val_fraction = 0.04
+    if args.seed is None:
+        args.seed = 42
+
+    return args
 
 
 def main():
@@ -224,7 +252,7 @@ def main():
     new_datasets = []
     for dataset in datasets:
         new_datasets.append(
-            component_split_bipartite(dataset["train"], val_size=args.val_size, seed=args.seed)
+            component_split_bipartite(dataset["train"], val_size=args.val_fraction, seed=args.seed)
         )
 
     for dataset_dict, original_path in zip(new_datasets, parquet_files):
@@ -241,7 +269,7 @@ def main():
             print(f"Skipping extra single-lang split: no file named {src_base!r} in input list")
         else:
             ru_sci = filter_single_language_pairs(datasets[match_idx]["train"])
-            ru_sci_splits = component_split_bipartite(ru_sci, lang_col=None, val_size=args.val_size, seed=args.seed)
+            ru_sci_splits = component_split_bipartite(ru_sci, lang_col=None, val_size=args.val_fraction, seed=args.seed)
             save_splits(ru_sci_splits, args.output_dir, args.extra_single_lang_output)
 
 

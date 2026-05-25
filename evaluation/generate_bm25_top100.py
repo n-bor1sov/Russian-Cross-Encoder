@@ -10,6 +10,7 @@ from __future__ import annotations
 import argparse
 import json
 import logging
+import tomllib
 from pathlib import Path
 from typing import Iterable
 
@@ -248,7 +249,21 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Skip validation after candidate generation.",
     )
-    return parser.parse_args()
+    parser.add_argument(
+        "--config",
+        type=Path,
+        default=None,
+        help="TOML config file (configs/thesis/eval.toml). CLI flags override TOML values.",
+    )
+    args = parser.parse_args()
+
+    if args.config is not None:
+        _cfg = tomllib.loads(args.config.read_text())
+        for _k, _v in _cfg.items():
+            if getattr(args, _k, "_missing_sentinel") is None:
+                setattr(args, _k, _v)
+
+    return args
 
 
 def main() -> None:

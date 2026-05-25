@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import gc
 import json
+import tomllib
 from pathlib import Path
 
 import pyarrow as pa
@@ -261,8 +262,10 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--output-dir", type=Path)
     parser.add_argument(
         "--top-k",
+        "--k",
+        dest="k",
         type=int,
-        default=30,
+        default=None,
         help="Top-k threshold used for filtering and stats reporting.",
     )
     parser.add_argument("--batch-size", type=int, default=100_000)
@@ -272,7 +275,24 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Only inspect input parquets and print per-dataset statistics.",
     )
-    return parser.parse_args()
+    parser.add_argument(
+        "--config",
+        type=Path,
+        default=None,
+        help="TOML config file (configs/thesis/03_filter_consistency.toml). CLI flags override TOML values.",
+    )
+    args = parser.parse_args()
+
+    if args.config is not None:
+        _cfg = tomllib.loads(args.config.read_text())
+        for _k, _v in _cfg.items():
+            if getattr(args, _k, "_missing_sentinel") is None:
+                setattr(args, _k, _v)
+
+    if args.k is None:
+        args.k = 30
+
+    return args
 
 
 def main() -> None:
@@ -280,11 +300,11 @@ def main() -> None:
     input_dir = args.input_dir.resolve()
     if args.batch_size <= 0:
         raise ValueError("--batch-size must be positive")
-    if args.top_k <= 0:
+    if args.k <= 0:
         raise ValueError("--top-k must be positive")
 
     if args.stats:
-        run_stats(input_dir, args.batch_size, args.top_k)
+        run_stats(input_dir, args.batch_size, args.k)
         return
 
     if args.output_dir is None:
@@ -293,7 +313,7 @@ def main() -> None:
     run_filter(
         input_dir,
         args.output_dir.resolve(),
-        top_k=args.top_k,
+        top_k=args.k,
         batch_size=args.batch_size,
         compression=args.compression,
     )

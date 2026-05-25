@@ -1,4 +1,5 @@
 
+import argparse
 import gc
 import hashlib
 import json
@@ -9,6 +10,7 @@ import queue
 import re
 import time
 import threading
+import tomllib
 from collections import defaultdict
 from pathlib import Path
 from typing import Any
@@ -1752,38 +1754,197 @@ def train_cross_encoder_reranker(
     return model
 
 
+_OPTIM_ALIASES = {
+    "adamw_fused": "adamw_torch_fused",
+}
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description="Train a cross-encoder reranker with bucketed batch sampling.",
+    )
+    parser.add_argument("--seed", type=int, default=None)
+    parser.add_argument("--base-model", dest="base_model", default=None)
+    parser.add_argument("--max-seq-length", dest="max_seq_length", type=int, default=None)
+    parser.add_argument("--loss", default=None)
+    parser.add_argument("--scale", type=float, default=None)
+    parser.add_argument("--k-h", dest="k_h", type=int, default=None,
+                        help="Number of hard negatives per query.")
+    parser.add_argument("--k-r", dest="k_r", type=int, default=None,
+                        help="Number of random negatives per query.")
+    parser.add_argument(
+        "--batch-size-per-gpu",
+        dest="batch_size_per_gpu",
+        type=int,
+        default=None,
+    )
+    parser.add_argument("--num-buckets", dest="num_buckets", type=int, default=None)
+    parser.add_argument("--optimizer", default=None)
+    parser.add_argument("--learning-rate", dest="learning_rate", type=float, default=None)
+    parser.add_argument("--lr-scheduler", dest="lr_scheduler", default=None)
+    parser.add_argument("--warmup-ratio", dest="warmup_ratio", type=float, default=None)
+    parser.add_argument("--weight-decay", dest="weight_decay", type=float, default=None)
+    parser.add_argument("--num-epochs", dest="num_epochs", type=int, default=None)
+    parser.add_argument(
+        "--gradient-caching",
+        dest="gradient_caching",
+        action=argparse.BooleanOptionalAction,
+        default=None,
+    )
+    parser.add_argument(
+        "--gradient-checkpointing",
+        dest="gradient_checkpointing",
+        action=argparse.BooleanOptionalAction,
+        default=None,
+    )
+    parser.add_argument(
+        "--eval-steps-per-epoch",
+        dest="eval_steps_per_epoch",
+        type=int,
+        default=None,
+    )
+    parser.add_argument("--checkpoint-metric", dest="checkpoint_metric", default=None)
+    parser.add_argument(
+        "--output-dir",
+        dest="output_dir",
+        default=None,
+        help="Where to save model checkpoints.",
+    )
+    parser.add_argument(
+        "--train-dataset-path",
+        dest="train_dataset_path",
+        default=None,
+    )
+    parser.add_argument(
+        "--eval-dataset-path",
+        dest="eval_dataset_path",
+        default=None,
+    )
+    parser.add_argument(
+        "--mini-batch-size",
+        dest="mini_batch_size",
+        type=int,
+        default=None,
+        help="Per-GPU minibatch size inside CachedMultipleNegativesRankingLoss.",
+    )
+    parser.add_argument(
+        "--clearml-task-name",
+        dest="clearml_task_name",
+        default=None,
+    )
+    parser.add_argument(
+        "--config",
+        type=Path,
+        default=None,
+        help="TOML config file (configs/thesis/06_train.toml). CLI flags override TOML values.",
+    )
+    args = parser.parse_args()
+
+    if args.config is not None:
+        _cfg = tomllib.loads(args.config.read_text())
+        for _k, _v in _cfg.items():
+            if getattr(args, _k, "_missing_sentinel") is None:
+                setattr(args, _k, _v)
+
+    # Original defaults — preserved from the legacy hard-coded main().
+    if args.seed is None:
+        args.seed = 12
+    if args.base_model is None:
+        args.base_model = "/home/jovyan/new-pvc/cross_encoders/nik_datasets/models/RuModernBERT-base"
+    if args.max_seq_length is None:
+        args.max_seq_length = 512
+    if args.loss is None:
+        args.loss = "MNRL"
+    if args.scale is None:
+        args.scale = 10.0
+    if args.k_h is None:
+        args.k_h = 8
+    if args.k_r is None:
+        args.k_r = 2
+    if args.batch_size_per_gpu is None:
+        args.batch_size_per_gpu = 256
+    if args.num_buckets is None:
+        args.num_buckets = 64
+    if args.optimizer is None:
+        args.optimizer = "adamw_torch_fused"
+    if args.learning_rate is None:
+        args.learning_rate = 1e-5
+    if args.lr_scheduler is None:
+        args.lr_scheduler = "cosine"
+    if args.warmup_ratio is None:
+        args.warmup_ratio = 0.05
+    if args.weight_decay is None:
+        args.weight_decay = 0.01
+    if args.num_epochs is None:
+        args.num_epochs = 3
+    if args.gradient_caching is None:
+        args.gradient_caching = True
+    if args.gradient_checkpointing is None:
+        args.gradient_checkpointing = False
+    if args.eval_steps_per_epoch is None:
+        args.eval_steps_per_epoch = 189
+    if args.checkpoint_metric is None:
+        args.checkpoint_metric = "eval_custom-dev_map"
+    if args.output_dir is None:
+        args.output_dir = (
+            "/home/jovyan/new-pvc/cross_encoders/"
+            "PositiveOnly-RuModernBERT-base-reranker-training-hneg8-rneg2-cosine-lr1e5"
+            "-minibatch128-pgpubatch256-gpu8-cf-no-pin-workers2/"
+        )
+    if args.train_dataset_path is None:
+        args.train_dataset_path = (
+            "/home/jovyan/new-pvc/cross_encoders/nik_datasets/parquets/final_dataset_bucketed_v6/train/"
+        )
+    if args.eval_dataset_path is None:
+        args.eval_dataset_path = (
+            "/home/jovyan/new-pvc/cross_encoders/nik_datasets/parquets/final_dataset_bucketed_v6/validation/"
+        )
+    if args.mini_batch_size is None:
+        args.mini_batch_size = 128
+    if args.clearml_task_name is None:
+        args.clearml_task_name = (
+            "PositiveOnly-RuModernBERT-base-reranker-training-hneg8-rneg2-cosine-lr1e5"
+            "-minibatch128-pgpubatch256-gpu8-cf-no-pin-workers2"
+        )
+
+    return args
+
+
 def main():
+    args = parse_args()
+    optim_name = _OPTIM_ALIASES.get(args.optimizer, args.optimizer)
+    eval_steps = max(1, args.eval_steps_per_epoch)
     training_args = CrossEncoderTrainingArguments(
-        output_dir="/home/jovyan/new-pvc/cross_encoders/PositiveOnly-RuModernBERT-base-reranker-training-hneg8-rneg2-cosine-lr1e5-minibatch128-pgpubatch256-gpu8-cf-no-pin-workers2/",
-        num_train_epochs=3,
-        per_device_train_batch_size=256,
+        output_dir=args.output_dir,
+        num_train_epochs=args.num_epochs,
+        per_device_train_batch_size=args.batch_size_per_gpu,
         per_device_eval_batch_size=64,
-        learning_rate=1e-5,
-        weight_decay=0.01,
-        warmup_ratio=0.05,
-        lr_scheduler_type="cosine",
+        learning_rate=args.learning_rate,
+        weight_decay=args.weight_decay,
+        warmup_ratio=args.warmup_ratio,
+        lr_scheduler_type=args.lr_scheduler,
         fp16=False,
         bf16=True,
         tf32=True,
         eval_strategy="steps",
-        eval_steps=189,
+        eval_steps=eval_steps,
         save_strategy="steps",
-        save_steps=189,
+        save_steps=eval_steps,
         save_total_limit=5,
         logging_steps=5,
         logging_first_step=True,
         disable_tqdm=True,
         run_name="RuModernBERT-base-reranker-training-bucketed",
-        seed=12,
+        seed=args.seed,
         report_to="clearml",
-        optim="adamw_torch_fused",
-        gradient_checkpointing=False,
+        optim=optim_name,
+        gradient_checkpointing=args.gradient_checkpointing,
         dataloader_num_workers=2,
         dataloader_pin_memory=True,
         dataloader_persistent_workers=True,
         dataloader_prefetch_factor=2,
         load_best_model_at_end=True,
-        metric_for_best_model="eval_custom-dev_map",
+        metric_for_best_model=args.checkpoint_metric,
         greater_is_better=True,
         accelerator_config={
             "even_batches": False,
@@ -1794,19 +1955,19 @@ def main():
     )
 
     model = train_cross_encoder_reranker(
-        model_name_or_path="/home/jovyan/new-pvc/cross_encoders/nik_datasets/models/RuModernBERT-base",
-        train_dataset_path="/home/jovyan/new-pvc/cross_encoders/nik_datasets/parquets/final_dataset_bucketed_v6/train/",
-        eval_dataset_path="/home/jovyan/new-pvc/cross_encoders/nik_datasets/parquets/final_dataset_bucketed_v6/validation/",
-        mini_batch_size=128,
+        model_name_or_path=args.base_model,
+        train_dataset_path=args.train_dataset_path,
+        eval_dataset_path=args.eval_dataset_path,
+        mini_batch_size=args.mini_batch_size,
         training_args=training_args,
-        num_hard_negatives=8,
-        num_negatives=8,
-        num_random_negatives=2,
-        clearml_task_name="PositiveOnly-RuModernBERT-base-reranker-training-hneg8-rneg2-cosine-lr1e5-minibatch128-pgpubatch256-gpu8-cf-no-pin-workers2",
-        max_length=512,
+        num_hard_negatives=args.k_h,
+        num_negatives=args.k_h,
+        num_random_negatives=args.k_r,
+        clearml_task_name=args.clearml_task_name,
+        max_length=args.max_seq_length,
         no_duplicates=True,
         bucket_assignment="greedy",
-        loss_scale=10.0,
+        loss_scale=args.scale,
     )
 
     logger.info("Training completed successfully: %s", model)

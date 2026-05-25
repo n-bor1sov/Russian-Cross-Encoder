@@ -11,6 +11,7 @@ import argparse
 import json
 import logging
 import re
+import tomllib
 from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import Any
@@ -690,7 +691,21 @@ def parse_args() -> argparse.Namespace:
             "Lower this if you hit MPS/CUDA OOM."
         ),
     )
-    return parser.parse_args()
+    parser.add_argument(
+        "--config",
+        type=Path,
+        default=None,
+        help="TOML config file (configs/thesis/eval.toml). CLI flags override TOML values.",
+    )
+    args = parser.parse_args()
+
+    if args.config is not None:
+        _cfg = tomllib.loads(args.config.read_text())
+        for _k, _v in _cfg.items():
+            if getattr(args, _k, "_missing_sentinel") is None:
+                setattr(args, _k, _v)
+
+    return args
 
 
 def main() -> None:

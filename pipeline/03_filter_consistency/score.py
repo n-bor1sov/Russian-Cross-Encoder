@@ -5,6 +5,7 @@ import gc
 import json
 import pickle
 import re
+import tomllib
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
@@ -430,8 +431,14 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--final-output-dir", required=True, type=Path)
     parser.add_argument("--shard", type=int, default=None)
     parser.add_argument("--num-shards", type=int, default=None)
-    parser.add_argument("--top-k", type=int, default=30)
-    parser.add_argument("--hole-fitting-top-k", type=int, default=50)
+    parser.add_argument("--top-k", "--k", dest="k", type=int, default=None)
+    parser.add_argument(
+        "--hole-fitting-top-k",
+        "--k-max",
+        dest="k_max",
+        type=int,
+        default=None,
+    )
     parser.add_argument("--use-gpu", action="store_true")
     parser.add_argument("--gpu-id", type=int, default=0)
     parser.add_argument("--num-workers", type=int, default=1)
@@ -451,7 +458,26 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Only write scored shard parquets; do not write dataset-wise outputs.",
     )
-    return parser.parse_args()
+    parser.add_argument(
+        "--config",
+        type=Path,
+        default=None,
+        help="TOML config file (configs/thesis/03_filter_consistency.toml). CLI flags override TOML values.",
+    )
+    args = parser.parse_args()
+
+    if args.config is not None:
+        _cfg = tomllib.loads(args.config.read_text())
+        for _k, _v in _cfg.items():
+            if getattr(args, _k, "_missing_sentinel") is None:
+                setattr(args, _k, _v)
+
+    if args.k is None:
+        args.k = 30
+    if args.k_max is None:
+        args.k_max = 50
+
+    return args
 
 
 def main() -> None:
@@ -477,7 +503,7 @@ def main() -> None:
             query_embeddings = load_query_embeddings(base)
             passage_key_to_faiss = load_passage_key_to_faiss(base)
             query_positives = build_query_positives(dataset_path, args.positives_batch_size)
-            scored_path = base / f"filtered_data_top_{args.top_k}.parquet"
+            scored_path = base / f"filtered_data_top_{args.k}.parquet"
             shard_stats.append(
                 score_shard(
                     dataset_path=dataset_path,
@@ -486,8 +512,8 @@ def main() -> None:
                     passage_key_to_faiss=passage_key_to_faiss,
                     query_embeddings=query_embeddings,
                     query_positives=query_positives,
-                    top_k=args.top_k,
-                    hole_fitting_top_k=args.hole_fitting_top_k,
+                    top_k=args.k,
+                    hole_fitting_top_k=args.k_max,
                     large_chunk_size=args.large_chunk_size,
                     small_chunk_size=args.small_chunk_size,
                     faiss_search_batch_size=args.faiss_search_batch_size,
@@ -514,14 +540,14 @@ def main() -> None:
     validate_scored_shards(shard_stats)
 
     manifest = {
-        "top_k": args.top_k,
-        "hole_fitting_top_k": args.hole_fitting_top_k,
+        "top_k": args.k,
+        "hole_fitting_top_k": args.k_max,
         "faiss_search_batch_size": args.faiss_search_batch_size,
         "shards": shard_stats,
         "dataset_output_counts": dataset_counts,
         "final_output_dir": str(args.final_output_dir.resolve()),
     }
-    with (shards_root / f"filter_manifest_top_{args.top_k}.json").open("w", encoding="utf-8") as handle:
+    with (shards_root / f"filter_manifest_top_{args.k}.json").open("w", encoding="utf-8") as handle:
         json.dump(manifest, handle, ensure_ascii=False, indent=2)
 
 

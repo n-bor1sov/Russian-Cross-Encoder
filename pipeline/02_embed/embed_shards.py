@@ -12,6 +12,7 @@ import pickle
 import random
 import ssl
 import time
+import tomllib
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from typing import Any
@@ -448,14 +449,19 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--shard", type=int, default=None)
     parser.add_argument("--num-shards", type=int, default=None)
     parser.add_argument("--model-path", default=os.environ.get("QWEN_MODEL_PATH", ""))
-    parser.add_argument("--embedding-dimension", type=int, default=1024)
+    parser.add_argument(
+        "--embedding-dimension",
+        dest="dimension",
+        type=int,
+        default=None,
+    )
     parser.add_argument("--embedding-batch-size-query", type=int, default=4096)
     parser.add_argument("--embedding-batch-size-passage", type=int, default=512)
     parser.add_argument("--parquet-batch-size", type=int, default=200_000)
-    parser.add_argument("--max-tokens", type=int, default=4096)
+    parser.add_argument("--max-tokens", dest="max_tokens", type=int, default=None)
     parser.add_argument("--api-base-url", default=os.environ.get("EMBEDDING_API_BASE_URL", ""))
     parser.add_argument("--api-key", default=os.environ.get("EMBEDDING_API_KEY", ""))
-    parser.add_argument("--api-model", default=os.environ.get("EMBEDDING_MODEL_NAME", ""))
+    parser.add_argument("--api-model", dest="model", default=None)
     parser.add_argument("--timeout", type=int, default=300)
     parser.add_argument("--n-parallel", type=int, default=2)
     parser.add_argument(
@@ -475,7 +481,28 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Also save query/passsage embedding maps keyed by text for old notebooks.",
     )
-    return parser.parse_args()
+    parser.add_argument(
+        "--config",
+        type=Path,
+        default=None,
+        help="TOML config file (configs/thesis/02_embed.toml). CLI flags override TOML values.",
+    )
+    args = parser.parse_args()
+
+    if args.config is not None:
+        _cfg = tomllib.loads(args.config.read_text())
+        for _k, _v in _cfg.items():
+            if getattr(args, _k, "_missing_sentinel") is None:
+                setattr(args, _k, _v)
+
+    if args.dimension is None:
+        args.dimension = 1024
+    if args.max_tokens is None:
+        args.max_tokens = 4096
+    if args.model is None:
+        args.model = os.environ.get("EMBEDDING_MODEL_NAME", "")
+
+    return args
 
 
 def main() -> None:
@@ -485,7 +512,7 @@ def main() -> None:
         model_path=args.model_path,
         base_url=args.api_base_url,
         api_key=args.api_key,
-        model_name=args.api_model,
+        model_name=args.model,
         timeout=args.timeout,
         n_parallel=args.n_parallel,
         max_retries=args.max_retries,
@@ -503,7 +530,7 @@ def main() -> None:
                 dataset_path=path,
                 output_dir=path.parent,
                 embedder=embedder,
-                embedding_dimension=args.embedding_dimension,
+                embedding_dimension=args.dimension,
                 embedding_batch_size_query=args.embedding_batch_size_query,
                 embedding_batch_size_passage=args.embedding_batch_size_passage,
                 parquet_batch_size=args.parquet_batch_size,

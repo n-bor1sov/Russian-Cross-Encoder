@@ -7,6 +7,7 @@ import json
 import logging
 import pickle
 import ssl
+import tomllib
 from collections import defaultdict
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
@@ -103,7 +104,68 @@ def parse_args():
         choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
         help="Logging verbosity",
     )
-    return parser.parse_args()
+    parser.add_argument("--seed", type=int, default=None, help="Random seed (forwarded as-is).")
+    parser.add_argument(
+        "--k0",
+        type=int,
+        default=None,
+        help="Initial FAISS search depth (top_k for the miner).",
+    )
+    parser.add_argument(
+        "--k-max",
+        dest="k_max",
+        type=int,
+        default=None,
+        help="Maximum FAISS search depth before giving up on widening.",
+    )
+    parser.add_argument(
+        "--n-min",
+        dest="n_min",
+        type=int,
+        default=None,
+        help="Minimum number of hard negatives to mine per query.",
+    )
+    parser.add_argument(
+        "--delta",
+        type=float,
+        default=None,
+        help="Relative margin used for the hard-negative threshold.",
+    )
+    parser.add_argument(
+        "--exclude-cross-lingual-positives",
+        dest="exclude_cross_lingual_positives",
+        action=argparse.BooleanOptionalAction,
+        default=None,
+        help="Exclude all-language positives from negative candidates.",
+    )
+    parser.add_argument(
+        "--config",
+        type=Path,
+        default=None,
+        help="TOML config file (configs/thesis/04_hnm.toml). CLI flags override TOML values.",
+    )
+    args = parser.parse_args()
+
+    if args.config is not None:
+        _cfg = tomllib.loads(args.config.read_text())
+        for _k, _v in _cfg.items():
+            if getattr(args, _k, "_missing_sentinel") is None:
+                setattr(args, _k, _v)
+
+    if args.seed is None:
+        args.seed = 42
+    if args.k0 is None:
+        args.k0 = 128
+    if args.k_max is None:
+        args.k_max = 2048
+    if args.n_min is None:
+        args.n_min = 15
+    if args.delta is None:
+        args.delta = 0.05
+    if args.exclude_cross_lingual_positives is None:
+        args.exclude_cross_lingual_positives = True
+
+    return args
 
 
 # -------- Embedder --------
@@ -1019,11 +1081,11 @@ def main():
     # Mining with restored embeddings when available, otherwise via live API.
     # ------------------------------------------------------------------
     cfg = MiningConfig(
-        top_k=128,
+        top_k=args.k0,
         margin_type="relative",
-        margin_value=0.05,
-        n_negatives=15,
-        max_search_k=2048,
+        margin_value=args.delta,
+        n_negatives=args.n_min,
+        max_search_k=args.k_max,
         index_type="flat",
     )
 
