@@ -2,14 +2,12 @@ from __future__ import annotations
 
 import argparse
 import json
-import runpy
+import sys
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-MODULE_PATH = Path(__file__).with_name("03_filter_and_restore_datasets.py")
-MODULE = runpy.run_path(str(MODULE_PATH))
-restore_dataset_outputs = MODULE["restore_dataset_outputs"]
-validate_dataset_outputs = MODULE["validate_dataset_outputs"]
+from score import restore_dataset_outputs, validate_dataset_outputs  # noqa: E402
 
 
 def parse_args() -> argparse.Namespace:
