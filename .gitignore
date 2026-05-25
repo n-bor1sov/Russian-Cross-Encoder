@@ -56,3 +56,6 @@ todo.md
 # HuggingFace cache (never commit model weights or dataset cache)
 *.arrow
 *.cache
+
+# Local example pipeline outputs
+examples/work/
