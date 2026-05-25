@@ -31,13 +31,7 @@ from clearml import Task
 from datasets import Dataset, DatasetDict, IterableDataset, IterableDatasetDict, load_dataset
 from pydantic import BaseModel, Field, ValidationError, field_validator, model_validator
 from torch.utils.data import ConcatDataset, DataLoader
-try:
-    from sampler_bucketed_fixed import make_same_dataset_batch_sampler
-except ImportError:
-    try:
-        from sampler_bucketed import make_same_dataset_batch_sampler
-    except ImportError:
-        from sampler import make_same_dataset_batch_sampler
+from sampler import make_same_dataset_batch_sampler
 from sentence_transformers.cross_encoder import (
     CrossEncoder,
     CrossEncoderModelCardData,
@@ -1405,7 +1399,7 @@ def _resolve_bucket_root_and_split(path: str | Path, default_split: str) -> tupl
         return path.parent, path.name
     raise FileNotFoundError(
         f"Could not find manifest.json at {path}/manifest.json or {path.parent}/manifest.json. "
-        "Run prepare_query_buckets.py first or pass a non-bucketed parquet directory."
+        "Run prepare_buckets.py first or pass a non-bucketed parquet directory."
     )
 
 
@@ -1627,7 +1621,7 @@ def train_cross_encoder_reranker(
             assignment=bucket_assignment,
         )
     else:
-        logger.warning("Using fallback plain parquet loader. For DDP memory safety, use prepare_query_buckets.py output.")
+        logger.warning("Using fallback plain parquet loader. For DDP memory safety, use prepare_buckets.py output.")
         train_dataset, train_groups = load_plain_parquets_with_groups(train_dataset_path)
 
     if len(train_dataset) == 0:

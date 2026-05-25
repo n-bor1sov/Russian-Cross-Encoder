@@ -69,4 +69,4 @@ def main() -> None:
 if __name__ == "__main__":
     main()
 
-# Example usage: python add_parquet_dataset_column.py --input /path/to/cleaned_datasets/splits/train/mmarco.parquet
+# Example usage: python add_dataset_column.py --input /path/to/cleaned_datasets/splits/train/mmarco.parquet

@@ -521,4 +521,4 @@ if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s - %(message)s")
     main()
 
-# Ex: nohup python 02_embed_shards.py --shards-root /path/to/shards --model-path /path/to/qwen-tokenizer > embed_output.log 2>&1 &
+# Ex: nohup python embed_shards.py --shards-root /path/to/shards --model-path /path/to/qwen-tokenizer > embed_output.log 2>&1 &

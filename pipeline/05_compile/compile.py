@@ -514,4 +514,4 @@ for split_name, split_cfg in  SPLIT_CONFIGS.items():
             f"written_queries={dataset_stats['written_queries']}"
         )
 
-# ex: nohup python3 final_dataset_compilation_top5.py > top5_compilation.log 2>&1 &
+# ex: nohup python3 compile.py > compile.log 2>&1 &

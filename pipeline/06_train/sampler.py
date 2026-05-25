@@ -185,7 +185,7 @@ class SameDatasetBatchSampler(SetEpochMixin):
 
         Keys are expected to be stable 64-bit integers (query_key64 and
         positive_key64) whenever the bucketed dataset was prepared by
-        prepare_query_buckets.py.
+        prepare_buckets.py.
         """
         anchor_to_q: dict[int, deque[int]] = {}
         row_iter = indices

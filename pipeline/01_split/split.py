@@ -248,4 +248,4 @@ def main():
 if __name__ == "__main__":
     main()
 
-# nohup python split_datasets.py  > split_datasets.log 2>&1 &
+# nohup python split.py  > split.log 2>&1 &

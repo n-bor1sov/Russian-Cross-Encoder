@@ -23,7 +23,7 @@ logging.basicConfig(
     datefmt="%Y-%m-%d %H:%M:%S",
     level=logging.INFO,
 )
-logger = logging.getLogger("prepare_query_buckets")
+logger = logging.getLogger("prepare_buckets")
 
 
 def stable_hash63(value: Any) -> int:

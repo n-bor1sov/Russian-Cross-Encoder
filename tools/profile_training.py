@@ -2,9 +2,9 @@
 Training bottleneck profiler for cross-encoder pipeline.
 
 Run with:
-    accelerate launch --num_processes=8 profile_training.py
+    accelerate launch --num_processes=8 tools/profile_training.py
     # or single GPU:
-    python profile_training.py
+    python tools/profile_training.py
 
 Reports time spent in: sampler build, data loading, H2D transfer,
 tokenization, forward, backward, optimizer, all-reduce, and idle gaps.
@@ -234,19 +234,11 @@ def profile_sampler_build(
     results: dict[str, float] = {}
 
     # Import from training script location
-    sys.path.insert(0, str(Path(__file__).parent))
-    try:
-        from sampler_bucketed_fixed import make_same_dataset_batch_sampler
-        print("  Using sampler_bucketed_fixed")
-    except ImportError:
-        try:
-            from sampler_bucketed import make_same_dataset_batch_sampler
-            print("  Using sampler_bucketed")
-        except ImportError:
-            from sampler import make_same_dataset_batch_sampler
-            print("  Using sampler (basic)")
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "pipeline" / "06_train"))
+    from sampler import make_same_dataset_batch_sampler
+    print("  Using sampler")
 
-    from PositiveOnly_train_bucketed import (
+    from train import (
         load_bucketed_split,
         load_plain_parquets_with_groups,
         build_key_maps,
@@ -323,16 +315,10 @@ def profile_dataloader_throughput(
     print(f"SECTION 2: Dataloader Throughput  (num_workers={num_workers})")
     print(f"{'='*60}")
 
-    sys.path.insert(0, str(Path(__file__).parent))
-    try:
-        from sampler_bucketed_fixed import make_same_dataset_batch_sampler
-    except ImportError:
-        try:
-            from sampler_bucketed import make_same_dataset_batch_sampler
-        except ImportError:
-            from sampler import make_same_dataset_batch_sampler
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "pipeline" / "06_train"))
+    from sampler import make_same_dataset_batch_sampler
 
-    from PositiveOnly_train_bucketed import (
+    from train import (
         load_bucketed_split,
         load_plain_parquets_with_groups,
         build_key_maps,
@@ -645,16 +631,10 @@ def profile_e2e_steps(
 
     device = torch.device(f"cuda:{_local_rank()}" if torch.cuda.is_available() else "cpu")
 
-    sys.path.insert(0, str(Path(__file__).parent))
-    try:
-        from sampler_bucketed_fixed import make_same_dataset_batch_sampler
-    except ImportError:
-        try:
-            from sampler_bucketed import make_same_dataset_batch_sampler
-        except ImportError:
-            from sampler import make_same_dataset_batch_sampler
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "pipeline" / "06_train"))
+    from sampler import make_same_dataset_batch_sampler
 
-    from PositiveOnly_train_bucketed import (
+    from train import (
         load_bucketed_split,
         load_plain_parquets_with_groups,
         build_key_maps,
@@ -881,7 +861,7 @@ def _print_report(all_results: dict[str, Any]):
     print(f"  1. Set dataloader_num_workers=4 (or 8). Currently 0 → all tokenization blocks GPU.")
     print(f"  2. Set dataloader_pin_memory=True when num_workers>0.")
     print(f"  3. Pre-tokenize and cache the dataset as input_ids tensors (eliminates tokenization from hot path).")
-    print(f"  4. If no_duplicates=True: consider pre-building batches once offline with prepare_query_buckets.py.")
+    print(f"  4. If no_duplicates=True: consider pre-building batches once offline with prepare_buckets.py.")
     print(f"  5. Set mini_batch_size=batch_size to use 1 forward pass instead of N serial mini-batches.")
     print(f"     (only do this if VRAM allows)")
     print(f"  6. Use gradient_checkpointing only if OOM; it trades ~30% compute for memory.")

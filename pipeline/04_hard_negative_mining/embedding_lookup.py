@@ -20,7 +20,7 @@ def safe_dataset_name(name: str) -> str:
 
 class DatasetEmbeddingLookup:
     """
-    Lightweight lookup hook for embeddings restored by 04_restore_embeddings_by_dataset.py.
+    Lightweight lookup hook for embeddings restored by pipeline/03_filter_consistency/restore_embeddings.py.
 
     SQLite mode keeps only one small DB connection per requested dataset/kind open.
     PKL mode is supported for small stores, but loads the selected dataset/kind file into RAM.

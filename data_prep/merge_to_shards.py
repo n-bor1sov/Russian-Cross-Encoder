@@ -694,4 +694,4 @@ if __name__ == "__main__":
     main()
 
 
-# Ex: nohup python 01_merge_to_shards.py --input-dir /path/to/cleaned_datasets/splits/train --output-dir /path/to/consistency_filtering_data > shardsoutput.log 2>&1 &
+# Ex: nohup python merge_to_shards.py --input-dir /path/to/cleaned_datasets/splits/train --output-dir /path/to/consistency_filtering_data > shardsoutput.log 2>&1 &

@@ -25,10 +25,6 @@ thesis.zip
 # Logs & runtime output
 *.log
 logs/
-train_scripts/logs/
-dataset_scripts/*.log
-dataset_scripts/finale/*.log
-dataset_scripts/hnm/*.log
 
 # Large binary / data outputs
 *.pkl
