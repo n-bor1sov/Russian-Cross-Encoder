@@ -9,7 +9,6 @@ position counts, etc.) are copied from the first checkpoint unchanged.
 from __future__ import annotations
 
 import argparse
-import shutil
 from pathlib import Path
 
 import torch
