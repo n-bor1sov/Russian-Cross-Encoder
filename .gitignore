@@ -18,8 +18,8 @@ env/
 *.env.local
 
 # Thesis (keep out of main code repo)
-thesis/
-thesis copy/
+/thesis/
+/thesis copy/
 thesis.zip
 
 # Logs & runtime output

@@ -1,0 +1,6 @@
+# Two-stage evaluation: BM25 top-100 → reranker → NDCG@10.
+benchmark         = "RusBEIR"
+first_stage       = "bm25"
+first_stage_top_k = 100
+primary_metric    = "ndcg@10"
+secondary_metrics = ["map@10", "mrr@10", "p@1", "p@3", "p@5"]

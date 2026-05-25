@@ -1,0 +1,8 @@
+# Hard negative mining — margin-based selection on a relative threshold.
+seed  = 42
+k0    = 50
+k_max = 1000
+n_min = 8
+delta = 0.05
+
+exclude_cross_lingual_positives = true

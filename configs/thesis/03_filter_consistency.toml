@@ -1,0 +1,5 @@
+# Consistency filtering — keep pair iff retrieval_rank < k OR
+# (retrieval_rank == -1 AND virtual_rank < k).
+k                 = 30
+k_max             = 100
+top_k_for_restore = 30

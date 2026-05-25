@@ -1,0 +1,3 @@
+# Cross-lingual augmentation and final compilation.
+cross_lingual_augment = true
+negatives_per_query   = 8

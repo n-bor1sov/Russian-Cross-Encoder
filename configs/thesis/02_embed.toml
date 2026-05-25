@@ -1,0 +1,7 @@
+# Embedding stage — frozen dense model + per-dataset FAISS index.
+model            = "Qwen3-Embedding"
+dimension        = 1024
+batch_size       = 128
+max_tokens       = 512
+faiss_index_type = "Flat"
+gpu              = true

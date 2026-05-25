@@ -1,0 +1,25 @@
+# Training procedure.
+seed = 42
+base_model     = "RuModernBERT-base"
+max_seq_length = 4096
+
+loss  = "MNRL"
+scale = 10.0
+
+k_h = 8
+k_r = 2
+
+batch_size_per_gpu = 16
+num_buckets        = 64
+
+optimizer       = "adamw_fused"
+learning_rate   = 2e-5
+lr_scheduler    = "cosine"
+warmup_ratio    = 0.1
+weight_decay    = 0.01
+num_epochs      = 1
+gradient_caching       = true
+gradient_checkpointing = true
+
+eval_steps_per_epoch = 20
+checkpoint_metric    = "map@10"
