@@ -1,0 +1,5 @@
+benchmark         = "synthetic"
+first_stage       = "bm25"
+first_stage_top_k = 10
+primary_metric    = "ndcg@10"
+secondary_metrics = ["map@10", "mrr@10"]

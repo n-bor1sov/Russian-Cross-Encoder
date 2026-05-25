@@ -1,0 +1,2 @@
+seed         = 42
+val_fraction = 0.20  # smaller corpus tolerates larger validation fraction
