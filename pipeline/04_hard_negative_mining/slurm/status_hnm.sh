@@ -12,7 +12,7 @@ echo "Log dir: $LOG_DIR"
 echo
 
 mapfile -t HNM_PIDS < <(
-  pgrep -f '(^|[ /])HNM\.(sh|py)([ ]|$)' \
+  pgrep -f '(^|[ /])(HNM\.sh|mine\.py)([ ]|$)' \
     | sort -u \
     | grep -v "^$$$" \
     | grep -v "^$PPID$" \
@@ -66,13 +66,13 @@ find_log_for_command() {
   return 1
 }
 
-echo "Last $TAIL_LINES log lines for active HNM.py miners:"
+echo "Last $TAIL_LINES log lines for active mine.py miners:"
 echo
 
 found_active_miner=0
 for pid in "${HNM_PIDS[@]}"; do
   command="$(ps -o command= -p "$pid" || true)"
-  if [[ "$command" != *"HNM.py"* ]]; then
+  if [[ "$command" != *"mine.py"* ]]; then
     continue
   fi
 
@@ -96,7 +96,7 @@ for pid in "${HNM_PIDS[@]}"; do
 done
 
 if (( found_active_miner == 0 )); then
-  echo "No active HNM.py miner processes found. HNM.sh may still be waiting or finishing."
+  echo "No active mine.py miner processes found. HNM.sh may still be waiting or finishing."
 fi
 
 echo

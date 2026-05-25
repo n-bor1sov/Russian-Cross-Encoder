@@ -6,7 +6,7 @@ TERM_TIMEOUT_SECONDS="${TERM_TIMEOUT_SECONDS:-15}"
 
 PATTERNS=(
   '(^|[ /])HNM\.sh([ ]|$)'
-  '(^|[ /])HNM\.py([ ]|$)'
+  '(^|[ /])mine\.py([ ]|$)'
 )
 
 collect_pids() {

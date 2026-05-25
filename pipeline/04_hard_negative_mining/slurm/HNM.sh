@@ -45,7 +45,7 @@ run_hnm_job() {
 
   status=0
   cmd=(
-    "$PYTHON_BIN" HNM.py
+    "$PYTHON_BIN" ../mine.py
     -d "$path"
     -o "$out_dir"
     -n "$name"
