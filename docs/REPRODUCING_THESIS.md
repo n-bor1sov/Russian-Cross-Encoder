@@ -39,27 +39,20 @@ require the usual `torchrun` rendezvous flags (`--nnodes`, `--node_rank`,
 ## Source dataset roster
 
 The thesis training run combines several Russian-language and
-multilingual query–passage corpora. The table below records the working
-roster; the engineer reproducing the run should fill in any `TBD` entry
-from the source-dataset directory they have on disk, or adjust the
-roster to match the data they actually use.
+multilingual query–passage corpora. The exact roster is not encoded in
+the repository — the pipeline depends only on the resulting Parquet
+shards in `${UNIFIED_DATA_DIR}` matching the input schema documented in
+`docs/PIPELINE.md`. Fill the table below with the sources you actually
+use:
 
-| Dataset key     | HuggingFace ID                                   | Notes                                                                        |
-|-----------------|--------------------------------------------------|------------------------------------------------------------------------------|
-| `mmarco_ru`     | `unicamp-dl/mmarco` (Russian split)              | MS-MARCO passages machine-translated to Russian; large general-domain set.   |
-| `mldr_ru`       | `Shitao/MLDR` (Russian split)                    | Long-document retrieval, Russian.                                            |
-| `mr_tydi_ru`    | `castorini/mr-tydi` (Russian split)              | Mr. TyDi Russian; native-language queries.                                   |
-| `xor_tydi_ru`   | `akariasai/xor-tydi`                             | Cross-lingual TyDi; multilingual coupling enabled.                           |
-| `ru_wikipedia`  | TBD — local Wikipedia dump                       | Synthesised query–passage pairs over a Russian Wikipedia snapshot.           |
-| `miracl_ru`     | `miracl/miracl` (Russian split)                  | MIRACL Russian; multilingual coupling available.                             |
-| `parallel_pair` | TBD                                              | Engineer fills in: source for parallel English↔Russian pairs, if any.        |
+| Dataset key | HuggingFace ID | Notes |
+|-------------|----------------|-------|
+| TBD         | TBD            | Brief one-line description. |
+| TBD         | TBD            | …                            |
 
-Entries marked TBD do not have a canonical HF identifier in the working
-tree at the time of writing; the engineer reproducing the thesis is
-expected to substitute the exact identifiers from the original data
-preparation. The pipeline does not depend on these strings — only on
-the resulting Parquet shards in `${UNIFIED_DATA_DIR}` matching the
-input schema in `docs/PIPELINE.md`.
+When extending or replacing this list, the only requirement is that
+each source yields rows with the documented six-column schema. Source
+selection has no effect on the pipeline code itself.
 
 ## Per-dataset `k` thresholds (consistency filtering)
 
