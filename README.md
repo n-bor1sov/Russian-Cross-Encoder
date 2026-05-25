@@ -1,182 +1,90 @@
 # Russian Cross-Encoder Reranker
 
-Training pipeline for a cross-encoder reranker specialized for Russian-language retrieval. The project covers the full lifecycle from raw datasets to a trained model: data sharding, consistency filtering, hard negative mining, bucketed distributed training, and evaluation.
+End-to-end training pipeline and trained-checkpoint recipe for a
+Russian-language cross-encoder reranker. The repository contains the
+full data-processing, training, and evaluation code that produced the
+results in the accompanying thesis (`thesis.pdf`).
 
-## Overview
+## What's in the repository
 
-```
-dataset_scripts/     # 7-stage data preparation pipeline
-train_scripts/       # Distributed training with DDP on 8+ GPUs
-test/                # Evaluation on reranking benchmarks
-hnm0.py              # Standalone hard negative mining entry point
-```
+| Folder         | What it contains                                                       |
+|----------------|------------------------------------------------------------------------|
+| `data_prep/`   | Off-pipeline helpers for normalising raw sources to the input schema   |
+| `pipeline/`    | The six-stage training pipeline (splitting → training)                 |
+| `evaluation/`  | Two-stage BM25 + reranker evaluation on Russian IR benchmarks          |
+| `configs/`     | Per-stage TOML configurations; `configs/thesis/` reproduces the paper  |
+| `docs/`        | `PIPELINE.md`, `REPRODUCING_THESIS.md`, `REPRODUCING_ABLATIONS.md`     |
+| `examples/`    | Self-contained miniature run to verify the install                     |
+| `tools/`       | Off-pipeline utilities                                                 |
 
-### Data pipeline
+For a narrative walkthrough of the pipeline, read `docs/PIPELINE.md`.
 
-| Step | Script | Purpose |
-|------|--------|---------|
-| 1 | `dataset_scripts/01_merge_to_shards.py` | Merge raw parquets into balanced shards preserving query–passage graph connectivity |
-| 2 | `dataset_scripts/02_embed_shards.py` | Embed shards with an OpenAI-compatible API; build per-shard FAISS indices |
-| 3 | `dataset_scripts/03_filter_and_restore_datasets.py` | Consistency filtering: keep only pairs where the positive is retrievable |
-| 4 | `dataset_scripts/04_restore_embeddings_by_dataset.py` | Restore per-dataset embedding files after filtering |
-| 5 | `dataset_scripts/05_filter_by_rank.py` | Additional rank-based filtering |
-| — | `dataset_scripts/finale/final_dataset_compilation.py` | Compile filtered datasets and mined hard negatives into a single training dataset |
-| — | `dataset_scripts/hnm/HNM.py` | Shard-level hard negative mining (distributed version of `hnm0.py`) |
-
-### Training
-
-`train_scripts/train_bucketed.py` trains a `sentence-transformers` `CrossEncoder` with:
-
-- **Loss**: `CachedMultipleNegativesRankingLoss` (scale = 10.0)
-- **Negatives**: 8 hard + 2 random per query
-- **Batching**: dataset-homogeneous bucketed batches, DDP-safe via custom `SameDatasetBatchSampler`
-- **Distributed**: 8-GPU DDP via `torchrun`
-- **Optimizer**: AdamW fused, cosine LR schedule, gradient checkpointing
-- **Max sequence length**: 4096 tokens
-- **Tracking**: ClearML (optional)
-
-Run with:
-```bash
-torchrun --nproc_per_node=8 train_scripts/train_bucketed.py
-```
-
-### Evaluation
-
-`test/test_reranker.py` evaluates models on reranking benchmarks (e.g. `mteb/RuBQReranking`). Supports:
-
-- Cross-encoder (`sentence-transformers`)
-- Embedding-based (SentenceTransformer + cosine similarity)
-- Qwen3-Reranker (causal LM, yes/no logit scoring)
-- mxbai-rerank, jina-reranker-v3, FlagReranker (BGE)
-
-Metrics reported: NDCG@10, Accuracy@1/3/5, MAP@10, MRR@10.
-
-```bash
-python test/test_reranker.py --model_path ./checkpoint-2432 --data_dir ./data/RuBQReranking
-```
-
-## Setup
-
-### Requirements
+## Requirements
 
 - Python 3.13+
-- CUDA 12+ (for GPU FAISS and distributed training)
-- `uv` (recommended) or `pip`
+- CUDA 12+ (for FAISS-GPU and distributed training)
+- An OpenAI-compatible embedding endpoint
+- A single GPU is enough to run `examples/`; the thesis training
+  configuration uses 8 GPUs. Detailed hardware notes are in
+  `docs/REPRODUCING_THESIS.md`.
 
-```bash
-uv sync
-# or: pip install -e .
-```
+The full dependency list is in `pyproject.toml`.
 
-Key dependencies (see `pyproject.toml`):
-- `sentence-transformers` >= 5.2
-- `transformers`, `datasets`, `torch`
-- `faiss-gpu` (for embedding and hard negative mining on GPU)
-- `openai` (embedding API client)
-- `clearml` (optional experiment tracking)
+## Install
 
-### Configuration
+    uv sync
+    # or: pip install -e .
 
-Copy `.env.example` to `.env` and fill in your values:
+## Configure
 
-```bash
-cp .env.example .env
-# Edit .env with your paths and credentials
-```
+    cp .env.example .env
+    # Edit .env to point at your data directories, embedding API,
+    # and base model
 
-Required variables:
+Required environment variables are documented in `.env.example`.
+Hyperparameters used for the thesis are in `configs/thesis/`; see
+`configs/README.md` for the config schema and override rules.
 
-| Variable | Description |
-|----------|-------------|
-| `HF_HOME` | HuggingFace cache root |
-| `HF_DATASETS_CACHE` | HuggingFace datasets cache |
-| `EMBEDDING_API_BASE_URL` | OpenAI-compatible embedding endpoint |
-| `EMBEDDING_API_KEY` | API key for the embedding endpoint |
-| `EMBEDDING_MODEL_NAME` | Model name passed to the embedding API |
-| `QWEN_MODEL_PATH` | Path to local Qwen tokenizer (used for text truncation before embedding) |
-| `TRAIN_MODEL_PATH` | Path to the base encoder to fine-tune |
-| `TRAIN_DATASET_PATH` | Path to bucketed training parquets |
-| `EVAL_DATASET_PATH` | Path to bucketed validation parquets |
-| `TRAIN_OUTPUT_DIR` | Directory to save checkpoints |
+## Quickstart
 
-Optional:
+Verify the install end-to-end on the bundled miniature corpus:
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `TRAIN_LOG_DIR` | `./logs` | Per-rank training log directory |
-| `USE_CLEARML` | `1` | Set to `0` to disable ClearML tracking |
-| `CLEARML_PROJECT_NAME` | `CrossEncoders` | ClearML project name |
-| `CLEARML_TASK_NAME` | `reranker-training` | ClearML task name |
+    bash examples/run.sh
 
-Load the variables before running any script:
-```bash
-export $(grep -v '^#' .env | xargs)
-```
+## Reproducing the thesis run
 
-## Hard negative mining
+See `docs/REPRODUCING_THESIS.md`. The short version:
 
-`hnm0.py` mines hard negatives for a single dataset parquet using FAISS.
+    ./run_pipeline.sh
+    bash evaluation/run.sh
 
-```bash
-# Step 1: compute and save embeddings
-python hnm0.py --embeddings-only \
-    -d /path/to/dataset.parquet \
-    -o /path/to/output \
-    -n dataset_name
+Each stage can also be run individually:
 
-# Step 2: mine from pre-computed embeddings
-python hnm0.py \
-    -d /path/to/dataset.parquet \
-    -o /path/to/output \
-    -n dataset_name \
-    --load-embeddings /path/to/output/embeddings_dataset_name
-```
+    bash pipeline/01_split/run.sh
+    bash pipeline/02_embed/run.sh
+    # ...
 
-For multi-shard distributed mining, use `dataset_scripts/hnm/HNM.py` with the shell scripts provided alongside it.
+For the ablation studies, see `docs/REPRODUCING_ABLATIONS.md`.
 
-## Bucketed dataset preparation
+## Input data
 
-Group training rows by stable query hash into per-rank buckets before distributed training. This ensures each GPU always processes one dataset at a time, which is required by the `SameDatasetBatchSampler`.
+The pipeline expects a corpus of query–passage pairs already in a
+common schema. Expected columns and constraints are documented in
+`docs/PIPELINE.md` under "Input data requirements". Helpers for
+normalising common source formats are in `data_prep/`.
 
-```bash
-python train_scripts/prepare_query_buckets.py \
-    --input-dir /path/to/final/dataset \
-    --output-dir /path/to/bucketed/dataset \
-    --num-buckets 64
-```
+## Citation
 
-## Repository structure
+If you use this code, please cite:
 
-```
-.
-├── dataset_scripts/
-│   ├── 01_merge_to_shards.py                   # Graph-safe shard creation
-│   ├── 02_embed_shards.py                       # API embedding + FAISS index build
-│   ├── 03_filter_and_restore_datasets.py        # Consistency filtering
-│   ├── 03_filter_and_restore_datasets_fixed.py  # Bug-fixed variant
-│   ├── 04_restore_embeddings_by_dataset.py      # Restore embeddings post-filter
-│   ├── 05_filter_by_rank.py                     # Rank-based filtering
-│   ├── add_parquet_dataset_column.py
-│   ├── debug_faiss_gpu.py
-│   ├── split_datasets.py
-│   ├── restore_only_datasets.py
-│   ├── finale/
-│   │   ├── final_dataset_compilation.py         # Assemble final training set
-│   │   └── analyze_final_dataset.py
-│   └── hnm/
-│       ├── HNM.py                               # Distributed shard-level HNM
-│       ├── HNM.sh / HNM_live.sh                # Launch scripts
-│       └── embedding_lookup.py
-├── train_scripts/
-│   ├── train_bucketed.py                        # Main DDP training script
-│   ├── sampler_bucketed.py                      # Dataset-homogeneous batch sampler
-│   ├── prepare_query_buckets.py                 # Pre-training data bucketing
-│   └── PositiveOnly_train_bucketed.py           # Variant without hard negatives
-├── test/
-│   ├── test_reranker.py                         # Multi-model evaluation script
-│   └── visualize_results_v2.ipynb
-├── hnm0.py                                      # Standalone HNM (single dataset)
-├── .env.example                                 # Environment variable template
-├── pyproject.toml
-└── uv.lock
-```
+    @thesis{<key>,
+      author = {Borisov, Nikita Mikhailovich},
+      title  = {A Contextual Cross-Encoder for High-Precision Textual
+                Reranking in Russian Language Information Retrieval},
+      school = {Innopolis University},
+      year   = {2026},
+    }
+
+## License
+
+MIT. See `LICENSE`.
