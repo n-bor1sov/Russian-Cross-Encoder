@@ -73,18 +73,6 @@ common schema. Expected columns and constraints are documented in
 `docs/PIPELINE.md` under "Input data requirements". Helpers for
 normalising common source formats are in `data_prep/`.
 
-## Citation
-
-If you use this code, please cite:
-
-    @thesis{<key>,
-      author = {Borisov, Nikita Mikhailovich},
-      title  = {A Contextual Cross-Encoder for High-Precision Textual
-                Reranking in Russian Language Information Retrieval},
-      school = {Innopolis University},
-      year   = {2026},
-    }
-
 ## License
 
 MIT. See `LICENSE`.
