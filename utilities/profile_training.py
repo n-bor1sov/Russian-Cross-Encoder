@@ -2,9 +2,9 @@
 Training bottleneck profiler for cross-encoder pipeline.
 
 Run with:
-    accelerate launch --num_processes=8 tools/profile_training.py
+    accelerate launch --num_processes=8 utilities/profile_training.py
     # or single GPU:
-    python tools/profile_training.py
+    python utilities/profile_training.py
 
 Reports time spent in: sampler build, data loading, H2D transfer,
 tokenization, forward, backward, optimizer, all-reduce, and idle gaps.

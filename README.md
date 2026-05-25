@@ -15,7 +15,7 @@ results in the accompanying thesis (`thesis.pdf`).
 | `configs/`     | Per-stage TOML configurations; `configs/thesis/` reproduces the paper  |
 | `docs/`        | `PIPELINE.md`, `REPRODUCING_THESIS.md`, `REPRODUCING_ABLATIONS.md`     |
 | `examples/`    | Self-contained miniature run to verify the install                     |
-| `tools/`       | Off-pipeline utilities                                                 |
+| `utilities/`   | Off-pipeline utilities                                                 |
 
 For a narrative walkthrough of the pipeline, read `docs/PIPELINE.md`.
 

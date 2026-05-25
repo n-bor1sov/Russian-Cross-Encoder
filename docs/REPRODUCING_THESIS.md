@@ -142,7 +142,7 @@ estimates, not contracts.
   registers under `${CLEARML_PROJECT_NAME}` / `${CLEARML_TASK_NAME}`
   with live loss curves, GPU utilisation, and the resolved config. This
   is the fastest way to diagnose throughput regressions across runs.
-- **Profiler:** `tools/profile_training.py` wraps a short training run
+- **Profiler:** `utilities/profile_training.py` wraps a short training run
   with PyTorch profiler hooks. Use it when MAP@10 looks fine but
   throughput is below the reference numbers above.
 - **FAISS-GPU OOM:** drop `batch_size` in `configs/thesis/02_embed.toml`

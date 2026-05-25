@@ -102,7 +102,7 @@ trained and evaluated independently.
 
 The SLERP ablation is post-training: it composes existing checkpoints
 into a new one without any additional training. The merge is performed
-by `tools/slerp_merge.py`, which takes a list of checkpoints and
+by `utilities/slerp_merge.py`, which takes a list of checkpoints and
 matching weights and produces a single merged checkpoint by spherical
 linear interpolation across the parameter tensors.
 
@@ -115,7 +115,7 @@ different `${UNIFIED_DATA_DIR}` compositions (e.g. one excluding a
 single source dataset, one with reweighted dataset frequencies). After
 training, merge:
 
-    python tools/slerp_merge.py \
+    python utilities/slerp_merge.py \
       --inputs /path/to/run_a/best /path/to/run_b/best /path/to/run_c/best \
       --weights 0.34 0.33 0.33 \
       --output /path/to/merged_composition
@@ -138,7 +138,7 @@ checkpoint.
 Identify the top-N checkpoints by validation MAP@10 from the training
 log, then merge them:
 
-    python tools/slerp_merge.py \
+    python utilities/slerp_merge.py \
       --inputs ${TRAIN_OUTPUT_DIR}/checkpoint-1900 \
                ${TRAIN_OUTPUT_DIR}/checkpoint-2000 \
                ${TRAIN_OUTPUT_DIR}/checkpoint-2100 \
