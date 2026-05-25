@@ -1,13 +1,27 @@
 [project]
-name = "cross-encoders"
-version = "0.1.0"
+name        = "cross-encoders"
+version     = "0.1.0"
 description = "Training pipeline for a Russian cross-encoder reranker: data sharding, embedding, hard negative mining, and distributed training"
-readme = "README.md"
+readme      = "README.md"
+license     = { text = "MIT" }
 requires-python = ">=3.13"
+
 dependencies = [
+    "accelerate>=1.0.0",
+    "datasets>=3.0.0",
+    "faiss-gpu>=1.8.0",
     "ipykernel>=7.2.0",
     "ipywidgets>=8.1.8",
     "matplotlib>=3.10.9",
+    "networkx>=3.3",
+    "openai>=1.40.0",
     "pandas>=3.0.3",
+    "pyarrow>=17.0.0",
+    "sentence-transformers>=5.2",
+    "torch>=2.4.0",
     "tqdm>=4.67.3",
+    "transformers>=4.45.0",
 ]
+
+[project.optional-dependencies]
+tracking = ["clearml>=1.16.0"]
