@@ -1,0 +1,13 @@
+[project]
+name = "cross-encoders"
+version = "0.1.0"
+description = "Training pipeline for a Russian cross-encoder reranker: data sharding, embedding, hard negative mining, and distributed training"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "ipykernel>=7.2.0",
+    "ipywidgets>=8.1.8",
+    "matplotlib>=3.10.9",
+    "pandas>=3.0.3",
+    "tqdm>=4.67.3",
+]

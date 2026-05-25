@@ -1,0 +1,58 @@
+# Python artifacts
+__pycache__/
+*.py[oc]
+*.pyo
+build/
+dist/
+wheels/
+*.egg-info/
+.eggs/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Environment & secrets
+.env
+*.env.local
+
+# Thesis (keep out of main code repo)
+thesis/
+thesis copy/
+thesis.zip
+
+# Logs & runtime output
+*.log
+logs/
+train_scripts/logs/
+dataset_scripts/*.log
+dataset_scripts/finale/*.log
+dataset_scripts/hnm/*.log
+
+# Large binary / data outputs
+*.pkl
+*.npy
+*.faiss
+results_*.json
+run_all_models.log
+
+# Jupyter checkpoints
+.ipynb_checkpoints/
+
+# IDE & OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Claude Code local settings
+.claude/
+
+# Scratch / temp files
+asdasdfas
+todo.md
+
+# HuggingFace cache (never commit model weights or dataset cache)
+*.arrow
+*.cache
